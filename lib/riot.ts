@@ -221,21 +221,26 @@ export async function getRecentMatches(puuid: string, count = 5): Promise<Recent
 }
 
 /**
- * Calculate LP delta over the last 24 hours by fetching solo ranked
- * matches played since (now - 24h) and summing lpGain per match.
- * Falls back to estimating from win/loss if lpGain is unavailable.
+ * Approximate LP delta over the last 24 hours of solo ranked.
+ *
+ * We fetch solo queue (420) matches with a `startTime` of now-24h
+ * and then sum LP gain per match:
+ *  - use Riot's `lpGain` field when present
+ *  - otherwise fall back to a simple heuristic (+18 for win, -15 for loss)
+ *
+ * This gives an intuitive "last 24h LP" number that roughly tracks
+ * what sites like U.GG show, without needing full historical ladder data.
  */
 export async function getLpDelta24h(puuid: string): Promise<number | null> {
   try {
     const startTime = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000) // unix seconds
     const r = await riotFetch(
-      `${EUROPE_BASE}/lol/match/v5/matches/by-puuid/${puuid}/ids?queue=420&start=0&count=20&startTime=${startTime}`
+      `${EUROPE_BASE}/lol/match/v5/matches/by-puuid/${puuid}/ids?queue=420&start=0&count=50&startTime=${startTime}`
     )
     if (!r.ok) return null
     const ids: string[] = await r.json()
     if (!ids.length) return 0
 
-    // Fetch all matches in parallel
     const matchData = await Promise.all(
       ids.map(async id => {
         const res = await riotFetch(`${EUROPE_BASE}/lol/match/v5/matches/${id}`)
@@ -243,8 +248,8 @@ export async function getLpDelta24h(puuid: string): Promise<number | null> {
       })
     )
 
-    let totalLp = 0
-    let hasAnyLpData = false
+    let total = 0
+    let any = false
 
     for (const m of matchData) {
       if (!m) continue
@@ -252,17 +257,16 @@ export async function getLpDelta24h(puuid: string): Promise<number | null> {
       if (!p) continue
 
       if (typeof p.lpGain === 'number') {
-        // lpGain is positive for wins, negative for losses (e.g. +18, -15)
-        totalLp += p.lpGain
-        hasAnyLpData = true
+        total += p.lpGain
+        any = true
+      } else if (typeof p.win === 'boolean') {
+        total += p.win ? 18 : -15
+        any = true
       }
     }
 
-    // If the API returned lpGain data, use it
-    if (hasAnyLpData) return totalLp
-
-    // Fallback: return null to indicate "played but LP data unavailable"
-    return null
+    if (!any) return 0
+    return total
   } catch (e) {
     console.error('[lpDelta24h]', e)
     return null

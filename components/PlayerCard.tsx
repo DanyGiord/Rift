@@ -261,7 +261,7 @@ export function PlayerCard({ player, queueType, onRemove }: PlayerCardProps) {
         </div>
 
         {/* Last 5 games */}
-        <div className="hidden xl:flex items-center gap-0.5 w-28 flex-shrink-0">
+        <div className="flex items-center gap-0.5 w-28 flex-shrink-0">
           {recentMatches.slice(0, 5).map((m, i) => <MatchDot key={i} match={m} />)}
           {!recentMatches.length && <span className="text-gray-700 text-[10px] font-body">—</span>}
         </div>
