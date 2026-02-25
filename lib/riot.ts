@@ -173,7 +173,16 @@ export async function getRecentMatches(puuid: string, count = 5): Promise<Recent
     ])
     const ids1: string[] = r1.ok ? await r1.json() : []
     const ids2: string[] = r2.ok ? await r2.json() : []
-    const allIds = [...new Set([...ids1, ...ids2])].slice(0, count)
+    const combined = ids1.concat(ids2)
+    const seen = new Set<string>()
+    const allIds: string[] = []
+    for (const id of combined) {
+      if (!seen.has(id)) {
+        seen.add(id)
+        allIds.push(id)
+      }
+      if (allIds.length >= count) break
+    }
     if (!allIds.length) return []
 
     const matchData = await Promise.all(
