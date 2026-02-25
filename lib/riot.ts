@@ -1,4 +1,5 @@
 import { Tier, Division, RankedStats, ChampionMastery, RecentMatch } from './types'
+import { getLpDeltaSinceNoonUtc } from './lpSnapshots'
 
 export const RIOT_API_KEY = process.env.RIOT_API_KEY || ''
 const EUW_BASE    = 'https://euw1.api.riotgames.com'
@@ -120,6 +121,12 @@ export async function getRankedStats(puuid: string, summonerId: string) {
   if (r2.ok) return r2.json()
   console.error(`[ranked] by-summoner also ${r2.status}`)
   return []
+}
+
+export async function getRankedEntriesByPuuid(puuid: string) {
+  const r = await riotFetch(`${EUW_BASE}/lol/league/v4/entries/by-puuid/${puuid}`)
+  if (!r.ok) return []
+  return r.json()
 }
 
 export async function getApexPosition(tier: Tier, summonerId: string): Promise<number | null> {
@@ -284,7 +291,12 @@ export async function getFullPlayerData(gameName: string, tagLine: string) {
     getRankedStats(account.puuid, summoner.id),
     getMasteries(account.puuid, 3),
     getRecentMatches(account.puuid, 5),
-    getLpDelta24h(account.puuid),
+    (async () => {
+      // Prefer snapshot-based delta since last 12:00 UTC refresh; fall back to match-based estimate.
+      const snapDelta = await getLpDeltaSinceNoonUtc(account.puuid, 'solo')
+      if (snapDelta !== null) return snapDelta
+      return getLpDelta24h(account.puuid)
+    })(),
   ])
 
   const soloQ = ranked.find((r: any) => r.queueType === 'RANKED_SOLO_5x5') ?? null
