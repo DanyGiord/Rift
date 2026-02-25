@@ -44,7 +44,11 @@ export function Leaderboard() {
 
   const loadPlayer = useCallback(async (gameName: string, tagLine: string, isMe: boolean) => {
     const key = playerKey(gameName, tagLine)
-    setLoadingKeys(prev => new Set([...prev, key]))
+    setLoadingKeys(prev => {
+      const next = new Set(prev)
+      next.add(key)
+      return next
+    })
     try {
       const res = await fetch(`/api/player?gameName=${encodeURIComponent(gameName)}&tagLine=${encodeURIComponent(tagLine)}`)
       if (res.status === 503) { setNoApiKey(true); return }
