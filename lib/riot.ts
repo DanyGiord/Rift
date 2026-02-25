@@ -47,6 +47,27 @@ export function winRate(wins: number, losses: number): number {
   return total === 0 ? 0 : Math.round((wins / total) * 100)
 }
 
+export function formatRank(stats: RankedStats | null): string {
+  if (!stats) return 'UNRANKED'
+  const { tier, division, leaguePosition } = stats
+  const base = division && !['CHALLENGER', 'GRANDMASTER', 'MASTER', 'UNRANKED'].includes(tier)
+    ? `${tier} ${division}`
+    : tier
+
+  if (typeof leaguePosition === 'number') {
+    return `${base} · #${leaguePosition}`
+  }
+  return base
+}
+
+export function formatLP(stats: RankedStats): string {
+  const lpPart = `${stats.lp} LP`
+  if (stats.miniSeriesProgress) {
+    return `${lpPart} · Series ${stats.miniSeriesProgress.replace(/N/g, '–')}`
+  }
+  return lpPart
+}
+
 function riotFetch(url: string) {
   return fetch(url, {
     headers: { 'X-Riot-Token': RIOT_API_KEY },
