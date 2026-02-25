@@ -59,9 +59,9 @@ export function RankBadge({ stats, size = 'md', showWR = true, showLP = true }: 
             <>
               <span className="text-gray-600">·</span>
               <span>
-                <span className="text-green-400">{stats.wins}W</span>
+                <span className="text-green-500">{stats.wins}W</span>
                 <span className="text-gray-500"> / </span>
-                <span className="text-red-400">{stats.losses}L</span>
+                <span className="text-red-500">{stats.losses}L</span>
                 <span className="text-gray-400"> ({winRate(stats.wins, stats.losses)}%)</span>
               </span>
             </>

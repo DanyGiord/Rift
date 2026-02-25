@@ -105,8 +105,8 @@ function WinrateBar({ wins, losses }: { wins: number; losses: number }) {
           style={{ width: `${wr}%`, background: `linear-gradient(90deg, ${wrColor}aa, ${wrColor})` }} />
       </div>
       <div className="flex justify-between text-[10px] mt-0.5 font-body text-gray-600">
-        <span className="text-green-500/70">{wins}W</span>
-        <span className="text-red-500/70">{losses}L</span>
+        <span className="text-green-400">{wins}W</span>
+        <span className="text-red-400">{losses}L</span>
       </div>
     </div>
   )
@@ -122,7 +122,7 @@ function MatchDot({ match }: { match: RecentMatch }) {
       </div>
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 pointer-events-none opacity-0 group-hover/m:opacity-100 transition-opacity">
         <div className="bg-[#010a13] border border-[#1e2d40] rounded p-2 text-[10px] whitespace-nowrap shadow-xl">
-          <div className={`font-display font-bold ${match.win ? 'text-[#52b788]' : 'text-red-400'}`}>
+          <div className={`font-display font-bold ${match.win ? 'text-[#38a169]' : 'text-red-500'}`}>
             {match.win ? 'Victory' : 'Defeat'} · {match.championName}
           </div>
           <div className="text-gray-400">{match.kills}/{match.deaths}/{match.assists}
@@ -274,7 +274,7 @@ export function PlayerCard({ player, queueType, onRemove }: PlayerCardProps) {
           </svg>
           <button
             onClick={e => { e.stopPropagation(); onRemove(player.summonerName, player.tagline) }}
-            className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all"
+            className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition-all"
             title="Remove player"
           >
             <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
@@ -370,13 +370,13 @@ export function PlayerCard({ player, queueType, onRemove }: PlayerCardProps) {
                   const kda = m.deaths === 0 ? 99 : (m.kills + m.assists) / m.deaths
                   return (
                     <div key={i} className={`flex items-center gap-2 rounded px-2 py-1.5 mb-1 last:mb-0 ${
-                      m.win ? 'bg-[#52b788]/6 border border-[#52b788]/12' : 'bg-red-500/5 border border-red-500/10'
+                      m.win ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'
                     }`}>
                       <img src={m.championIconUrl} alt={m.championName} className="w-7 h-7 rounded-full object-cover flex-shrink-0"
                         onError={e => { (e.target as HTMLImageElement).style.opacity = '0' }} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
-                          <span className={`text-[10px] font-bold ${m.win ? 'text-[#52b788]' : 'text-red-400'}`}>{m.win ? 'W' : 'L'}</span>
+                          <span className={`text-[10px] font-bold ${m.win ? 'text-green-500' : 'text-red-500'}`}>{m.win ? 'W' : 'L'}</span>
                           <span className="text-[10px] text-gray-400 truncate font-body">{m.championName}</span>
                         </div>
                         <div className="text-[10px] text-gray-600 font-body">

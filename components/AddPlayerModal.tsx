@@ -89,7 +89,7 @@ export function AddPlayerModal({ onClose, onAdd }: AddPlayerModalProps) {
           </label>
 
           {error && (
-            <p className="text-red-400 text-sm font-body bg-red-400/10 rounded px-3 py-2">{error}</p>
+            <p className="text-red-500 text-sm font-body bg-red-500/15 rounded px-3 py-2">{error}</p>
           )}
 
           <div className="flex gap-3 pt-2">
