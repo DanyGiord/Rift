@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Player, RecentMatch, RankedStats } from '@/lib/types'
 import { getRankColor, winRate, getTierAbbr } from '@/lib/riot'
 
@@ -135,7 +135,7 @@ function MatchDot({ match }: { match: RecentMatch }) {
   )
 }
 
-export function PlayerCard({ player, queueType, onRemove }: PlayerCardProps) {
+function PlayerCardComponent({ player, queueType, onRemove }: PlayerCardProps) {
   const [expanded, setExpanded] = useState(false)
   const stats = queueType === 'solo' ? player.rankedSolo : player.rankedFlex
   const rankColor = stats ? getRankColor(stats.tier) : '#6b7280'
@@ -151,14 +151,14 @@ export function PlayerCard({ player, queueType, onRemove }: PlayerCardProps) {
   }
 
   return (
-    <div className={`rounded-lg border transition-all duration-200 overflow-hidden relative ${
+    <div className={`rounded-lg border transition-all duration-300 ease-out overflow-hidden relative ${
       player.isMe ? 'border-[#c89b3c]/50' : 'border-[#1e2d40] hover:border-[#2a3d52]'
-    }`} style={{ background: player.isMe ? 'rgba(200,155,60,0.03)' : 'rgba(8,18,30,0.8)' }}>
+    }`} style={{ background: player.isMe ? 'rgba(200,155,60,0.06)' : 'rgba(8,18,30,0.9)', transformOrigin: 'center' }}>
 
-      <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l" style={{ background: rankColor, opacity: 0.8 }} />
+      <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l transition-opacity duration-300" style={{ background: rankColor, opacity: 0.8 }} />
 
       {/* Main row */}
-      <div className="flex items-center gap-0 pl-1 pr-3 h-16 cursor-pointer group" onClick={() => setExpanded(e => !e)}>
+      <div className="flex items-center gap-0 pl-1 pr-3 h-16 cursor-pointer group hover:bg-white/2" onClick={() => setExpanded(e => !e)}>
 
         {/* Position */}
         <div className="w-12 text-center flex-shrink-0">
@@ -396,3 +396,5 @@ export function PlayerCard({ player, queueType, onRemove }: PlayerCardProps) {
     </div>
   )
 }
+
+export const PlayerCard = memo(PlayerCardComponent)

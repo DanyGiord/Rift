@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Player } from '@/lib/types'
 import { getTierValue } from '@/lib/riot'
 import { getFriends, addFriend, removeFriend, FriendEntry } from '@/lib/friends'
@@ -64,7 +64,13 @@ export function Leaderboard() {
   useEffect(() => {
     const stored = getFriends()
     setFriends(stored)
-    stored.forEach(f => loadPlayer(f.gameName, f.tagLine, f.isMe))
+    ;(async () => {
+      const concurrency = 3
+      for (let i = 0; i < stored.length; i += concurrency) {
+        const batch = stored.slice(i, i + concurrency)
+        await Promise.all(batch.map(f => loadPlayer(f.gameName, f.tagLine, f.isMe)))
+      }
+    })()
   }, [loadPlayer])
 
   const handleAdd = async (gameName: string, tagLine: string, isMe: boolean) => {
@@ -85,12 +91,13 @@ export function Leaderboard() {
     setPlayers(prev => { const n = new Map(prev); n.delete(playerKey(gameName, tagLine)); return n })
   }
 
-  const handleRefreshAll = async () => {
+  const handleRefreshAll = useCallback(async () => {
+    if (refreshing || !friends.length) return
     setRefreshing(true)
     setPlayers(new Map())
     await Promise.all(friends.map(f => loadPlayer(f.gameName, f.tagLine, f.isMe)))
     setRefreshing(false)
-  }
+  }, [friends, loadPlayer, refreshing])
 
   const emptyPlayer = (f: FriendEntry): Player => ({
     id: playerKey(f.gameName, f.tagLine),
@@ -107,24 +114,35 @@ export function Leaderboard() {
     isMe: f.isMe,
   })
 
-  const playerList = friends.map(f => {
-    const key = playerKey(f.gameName, f.tagLine)
-    return players.get(key) || emptyPlayer(f)
-  })
+  const allEntries: PlayerWithMeta[] = useMemo(() => {
+    const playerList = friends.map(f => {
+      const key = playerKey(f.gameName, f.tagLine)
+      return players.get(key) || emptyPlayer(f)
+    })
 
-  const sorted = sortPlayers(
-    playerList.filter(p => !loadingKeys.has(playerKey(p.summonerName, p.tagline))),
-    queueType
-  )
+    const sorted = sortPlayers(
+      playerList.filter(p => !loadingKeys.has(playerKey(p.summonerName, p.tagline))),
+      queueType
+    )
 
-  const loadingPlayers = friends
-    .filter(f => loadingKeys.has(playerKey(f.gameName, f.tagLine)))
-    .map(f => ({ ...emptyPlayer(f), loading: true, rank: 999 }))
+    const loadingPlayers = friends
+      .filter(f => loadingKeys.has(playerKey(f.gameName, f.tagLine)))
+      .map(f => ({ ...emptyPlayer(f), loading: true, rank: 999 }))
 
-  const allEntries: PlayerWithMeta[] = [
-    ...sorted.map((p, i) => ({ ...p, rank: i + 1 })),
-    ...loadingPlayers,
-  ]
+    return [
+      ...sorted.map((p, i) => ({ ...p, rank: i + 1 })),
+      ...loadingPlayers,
+    ]
+  }, [friends, players, loadingKeys, queueType])
+
+  // Auto-refresh every 5 minutes to keep data up to date
+  useEffect(() => {
+    if (!friends.length) return
+    const interval = setInterval(() => {
+      void handleRefreshAll()
+    }, 5 * 60 * 1000) // 5 minutes
+    return () => clearInterval(interval)
+  }, [friends.length, handleRefreshAll])
 
   return (
     <div className="min-h-screen hex-bg relative">
