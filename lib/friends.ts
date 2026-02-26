@@ -130,7 +130,7 @@ export function mergeFriendsFromShareToken(token: string): FriendEntry[] {
     if (isMe) {
       // Clear previous "me" flags; this shared list defines the current owner
       anyIsMe = true
-      for (const v of byKey.values()) {
+      for (const v of Array.from(byKey.values())) {
         v.isMe = false
       }
     }
@@ -153,7 +153,7 @@ export function mergeFriendsFromShareToken(token: string): FriendEntry[] {
   // Ensure at most one "me"
   if (anyIsMe) {
     let firstMeKey: string | null = null
-    for (const [key, value] of byKey.entries()) {
+    for (const [key, value] of Array.from(byKey.entries())) {
       if (value.isMe) {
         if (!firstMeKey) {
           firstMeKey = key
