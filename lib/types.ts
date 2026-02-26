@@ -67,6 +67,7 @@ export interface Player {
   isMe?: boolean
   lastUpdated?: string
   nickname?: string          // optional label e.g. "John's main"
+  inActiveGame?: boolean     // true if currently in a live game
 }
 
 export interface LeaderboardEntry extends Player {

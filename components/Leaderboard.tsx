@@ -14,6 +14,7 @@ import {
 } from '@/lib/friends'
 import { PlayerCard } from './PlayerCard'
 import { AddPlayerModal } from './AddPlayerModal'
+import { clearCachedPlayer, getCachedPlayer, setCachedPlayer } from '@/lib/playerCache'
 
 type QueueType = 'solo' | 'flex'
 
@@ -51,7 +52,7 @@ export function Leaderboard() {
   const playerKey = (gameName: string, tagLine: string) =>
     `${gameName.toLowerCase()}#${tagLine.toLowerCase()}`
 
-  const loadPlayer = useCallback(async (gameName: string, tagLine: string, isMe: boolean) => {
+  const loadPlayer = useCallback(async (gameName: string, tagLine: string, isMe: boolean, forceRefresh = false) => {
     const key = playerKey(gameName, tagLine)
     setLoadingKeys(prev => {
       const next = new Set(prev)
@@ -59,10 +60,18 @@ export function Leaderboard() {
       return next
     })
     try {
+      if (!forceRefresh) {
+        const cached = getCachedPlayer(key)
+        if (cached) {
+          setPlayers(prev => new Map(prev).set(key, { ...cached, isMe }))
+          return
+        }
+      }
       const res = await fetch(`/api/player?gameName=${encodeURIComponent(gameName)}&tagLine=${encodeURIComponent(tagLine)}`)
       if (res.status === 503) { setNoApiKey(true); return }
       if (!res.ok) return
       const data: Player = await res.json()
+      setCachedPlayer(key, data)
       setPlayers(prev => new Map(prev).set(key, { ...data, isMe }))
     } catch {}
     finally {
@@ -98,6 +107,34 @@ export function Leaderboard() {
     })()
   }, [loadPlayer])
 
+  // Poll live game status so "LIVE GAME" appears without full refresh (e.g. indoor fish just entered game)
+  useEffect(() => {
+    if (!friends.length) return
+    const LIVE_POLL_MS = 90 * 1000
+    const tick = async () => {
+      for (const f of friends) {
+        const key = playerKey(f.gameName, f.tagLine)
+        try {
+          const res = await fetch(`/api/player/live?gameName=${encodeURIComponent(f.gameName)}&tagLine=${encodeURIComponent(f.tagLine)}`)
+          if (!res.ok) continue
+          const { inActiveGame } = await res.json()
+          setPlayers(prev => {
+            const next = new Map(prev)
+            const p = next.get(key)
+            if (p && p.inActiveGame !== inActiveGame) next.set(key, { ...p, inActiveGame })
+            return next
+          })
+        } catch {
+          // ignore
+        }
+        await new Promise(r => setTimeout(r, 400))
+      }
+    }
+    const id = setInterval(tick, LIVE_POLL_MS)
+    tick()
+    return () => clearInterval(id)
+  }, [friends])
+
   const handleAdd = async (gameName: string, tagLine: string, isMe: boolean, nickname?: string) => {
     const updated = addFriend(gameName, tagLine, isMe, nickname)
     setFriends(updated)
@@ -117,6 +154,7 @@ export function Leaderboard() {
 
   const handleRemove = (gameName: string, tagLine: string) => {
     setFriends(removeFriend(gameName, tagLine))
+    clearCachedPlayer(playerKey(gameName, tagLine))
     setPlayers(prev => { const n = new Map(prev); n.delete(playerKey(gameName, tagLine)); return n })
   }
 
@@ -127,7 +165,7 @@ export function Leaderboard() {
     const delayMs = 1100
     for (let i = 0; i < friends.length; i++) {
       const f = friends[i]
-      await loadPlayer(f.gameName, f.tagLine, f.isMe)
+      await loadPlayer(f.gameName, f.tagLine, f.isMe, true) // force refresh = bypass cache
       if (i < friends.length - 1) await new Promise(r => setTimeout(r, delayMs))
     }
     setRefreshing(false)

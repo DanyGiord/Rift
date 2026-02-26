@@ -76,28 +76,57 @@ function riotFetch(url: string) {
   })
 }
 
+const DD_TIMEOUT_MS = 5000
+
+async function fetchWithTimeout(url: string, timeoutMs = DD_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const r = await fetch(url, { cache: 'no-store', signal: controller.signal })
+    return r
+  } finally {
+    clearTimeout(id)
+  }
+}
+
 let _ddVer: string | null = null
 async function ddVersion(): Promise<string> {
   if (_ddVer) return _ddVer
   try {
-    const r = await fetch('https://ddragon.leagueoflegends.com/api/versions.json', { cache: 'no-store' })
+    const r = await fetchWithTimeout('https://ddragon.leagueoflegends.com/api/versions.json')
     const v: string[] = await r.json()
     _ddVer = v[0]
     return _ddVer
-  } catch { return '15.8.1' }
+  } catch {
+    _ddVer = '15.8.1'
+    return _ddVer
+  }
 }
 
 let _champMap: Record<number, string> | null = null
 async function getChampMap(): Promise<Record<number, string>> {
   if (_champMap) return _champMap
-  const ver = await ddVersion()
-  const r = await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/en_US/champion.json`, { cache: 'no-store' })
-  const d = await r.json()
-  _champMap = {}
-  for (const v of Object.values(d.data as Record<string, any>)) {
-    _champMap![Number(v.key)] = v.id
+  try {
+    const ver = await ddVersion().catch(() => '15.8.1')
+    const r = await fetchWithTimeout(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/en_US/champion.json`)
+    if (!r.ok) return (_champMap = {})
+    const d = await r.json()
+    const map: Record<number, string> = {}
+    const data = d.data as Record<string, any> | undefined
+    if (data && typeof data === 'object') {
+      for (const v of Object.values(data)) {
+        if (v && typeof v.key !== 'undefined' && v.id) map[Number(v.key)] = v.id
+      }
+    }
+    _champMap = map
+    return _champMap
+  } catch (e) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[ddragon] champion map unavailable:', (e as Error)?.message ?? e)
+    }
+    _champMap = {}
+    return _champMap
   }
-  return _champMap!
 }
 
 export async function getAccountByRiotId(gameName: string, tagLine: string) {
@@ -129,6 +158,20 @@ export async function getRankedEntriesByPuuid(puuid: string) {
   return r.json()
 }
 
+/** Lightweight check: is this player currently in an active (spectatable) game? */
+export async function getActiveGameStatus(gameName: string, tagLine: string): Promise<boolean> {
+  try {
+    const account = await getAccountByRiotId(gameName, tagLine)
+    if (!account) return false
+    const summoner = await getSummonerByPuuid(account.puuid)
+    if (!summoner) return false
+    const r = await riotFetch(`${EUW_BASE}/lol/spectator/v4/active-games/by-summoner/${summoner.id}`)
+    return r.ok
+  } catch {
+    return false
+  }
+}
+
 export async function getApexPosition(tier: Tier, summonerId: string): Promise<number | null> {
   const urlMap: Partial<Record<Tier, string>> = {
     CHALLENGER:  `${EUW_BASE}/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5`,
@@ -151,8 +194,10 @@ export async function getMasteries(puuid: string, count = 3): Promise<ChampionMa
     const r = await riotFetch(`${EUW_BASE}/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}/top?count=${count}`)
     if (!r.ok) { console.error(`[mastery] ${r.status}`); return [] }
     const data = await r.json()
-    const ver = await ddVersion()
-    const champMap = await getChampMap()
+    const [ver, champMap] = await Promise.all([
+      ddVersion().catch(() => '15.8.1'),
+      getChampMap().catch(() => ({}) as Record<number, string>),
+    ])
     return data.map((m: any) => {
       const key = champMap[m.championId] ?? 'Unknown'
       return {
@@ -163,7 +208,10 @@ export async function getMasteries(puuid: string, count = 3): Promise<ChampionMa
         iconUrl: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${key}.png`,
       } as ChampionMastery
     })
-  } catch (e) { console.error('[mastery]', e); return [] }
+  } catch (e) {
+    console.error('[mastery]', e)
+    return []
+  }
 }
 
 const QUEUE_LABELS: Record<number, string> = {
@@ -173,7 +221,7 @@ const QUEUE_LABELS: Record<number, string> = {
 
 export async function getRecentMatches(puuid: string, count = 5): Promise<RecentMatch[]> {
   try {
-    const ver = await ddVersion()
+    const ver = await ddVersion().catch(() => '15.8.1')
     const [r1, r2] = await Promise.all([
       riotFetch(`${EUROPE_BASE}/lol/match/v5/matches/by-puuid/${puuid}/ids?queue=420&start=0&count=${count}`),
       riotFetch(`${EUROPE_BASE}/lol/match/v5/matches/by-puuid/${puuid}/ids?queue=440&start=0&count=${count}`),
@@ -297,7 +345,7 @@ export async function getFullPlayerData(gameName: string, tagLine: string) {
   const summoner = await getSummonerByPuuid(account.puuid)
   if (!summoner) throw new Error(`Summoner not found for puuid: ${account.puuid}`)
 
-  const [ranked, topChampions, recentMatches, lpDelta24h] = await Promise.all([
+  const [ranked, topChampions, recentMatches, lpDelta24h, inActiveGame] = await Promise.all([
     getRankedStats(account.puuid, summoner.id),
     getMasteries(account.puuid, 3),
     getRecentMatches(account.puuid, 5),
@@ -306,6 +354,14 @@ export async function getFullPlayerData(gameName: string, tagLine: string) {
       const snapDelta = await getLpDeltaSinceNoonUtc(account.puuid, 'solo')
       if (snapDelta !== null) return snapDelta
       return getLpDelta24h(account.puuid)
+    })(),
+    (async () => {
+      try {
+        const r = await riotFetch(`${EUW_BASE}/lol/spectator/v4/active-games/by-summoner/${summoner.id}`)
+        return r.ok
+      } catch {
+        return false
+      }
     })(),
   ])
 
@@ -345,6 +401,7 @@ export async function getFullPlayerData(gameName: string, tagLine: string) {
     topChampions,
     recentMatches,
     lpDelta24h,
+    inActiveGame: inActiveGame ?? false,
     lastUpdated: new Date().toISOString(),
   }
 }

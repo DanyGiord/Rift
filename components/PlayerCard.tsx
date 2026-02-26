@@ -121,7 +121,8 @@ function MatchDot({ match }: { match: RecentMatch }) {
         <img src={match.championIconUrl} alt={match.championName} className="w-full h-full object-cover"
           onError={e => { (e.target as HTMLImageElement).style.opacity = '0' }} />
       </div>
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 pointer-events-none opacity-0 group-hover/m:opacity-100 transition-opacity">
+      {/* Tooltip above icon; z-[100] and parent overflow-visible so it isn't clipped */}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-[100] pointer-events-none opacity-0 group-hover/m:opacity-100 transition-opacity duration-150">
         <div className="bg-[#010a13] border border-[#1e2d40] rounded p-2 text-[10px] whitespace-nowrap shadow-xl">
           <div className={`font-display font-bold ${match.win ? 'text-[#38a169]' : 'text-red-500'}`}>
             {match.win ? 'Victory' : 'Defeat'} · {match.championName}
@@ -154,7 +155,7 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
   }
 
   return (
-    <div className={`rounded-lg border transition-all duration-300 ease-out overflow-hidden relative transform hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-xl ${
+    <div className={`rounded-lg border transition-all duration-300 ease-out overflow-visible relative transform hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-xl ${
       player.isMe ? 'border-[#c89b3c]/50' : 'border-[#1e2d40] hover:border-[#2a3d52]'
     }`} style={{ background: player.isMe ? 'rgba(200,155,60,0.06)' : 'rgba(8,18,30,0.9)', transformOrigin: 'center' }}>
 
@@ -320,6 +321,19 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
           {!recentMatches.length && <span className="text-gray-700 text-[10px] font-body">—</span>}
         </div>
 
+        {/* Live game button – shown when player is in an active game (updated by poll every 90s) */}
+        {player.inActiveGame && (
+          <div className="flex items-center flex-shrink-0" onClick={e => e.stopPropagation()}>
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/20 border border-red-500/50"
+              title="Currently in a live game"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[10px] font-display font-bold tracking-wider text-red-300">LIVE GAME</span>
+            </span>
+          </div>
+        )}
+
         {/* Expand + remove */}
         <div className="flex items-center gap-1 ml-auto pl-2 flex-shrink-0">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -380,6 +394,14 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
                 {stats.veteran    && <span className="text-[10px] bg-blue-500/10   text-blue-400   border border-blue-500/20   rounded px-1.5 py-0.5">🛡 Veteran</span>}
                 {stats.freshBlood && <span className="text-[10px] bg-green-500/10  text-green-400  border border-green-500/20  rounded px-1.5 py-0.5">✨ Fresh Blood</span>}
                 {stats.inactive   && <span className="text-[10px] bg-gray-500/10   text-gray-400   border border-gray-500/20   rounded px-1.5 py-0.5">💤 Inactive</span>}
+              </div>
+            )}
+            {player.inActiveGame && (
+              <div className="mt-2 pt-2 border-t border-[#1e2d40]/40">
+                <span className="text-[10px] bg-red-500/20 text-red-300 border border-red-500/50 rounded px-1.5 py-0.5 inline-flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+                  LIVE GAME
+                </span>
               </div>
             )}
           </div>
