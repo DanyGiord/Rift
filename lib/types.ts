@@ -66,6 +66,7 @@ export interface Player {
   lpDelta24h: number | null   // total LP change in last 24h (solo ranked)
   isMe?: boolean
   lastUpdated?: string
+  nickname?: string          // optional label e.g. "John's main"
 }
 
 export interface LeaderboardEntry extends Player {

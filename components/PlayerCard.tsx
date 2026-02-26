@@ -8,6 +8,7 @@ interface PlayerCardProps {
   player: Player & { rank: number; loading?: boolean }
   queueType: 'solo' | 'flex'
   onRemove: (gameName: string, tagLine: string) => void
+  onUpdateNickname?: (gameName: string, tagLine: string, nickname: string) => void
 }
 
 const EMBLEMS: Record<string, string> = {
@@ -135,8 +136,10 @@ function MatchDot({ match }: { match: RecentMatch }) {
   )
 }
 
-function PlayerCardComponent({ player, queueType, onRemove }: PlayerCardProps) {
+function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: PlayerCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const [editingNickname, setEditingNickname] = useState(false)
+  const [nicknameInput, setNicknameInput] = useState(player.nickname ?? '')
   const stats = queueType === 'solo' ? player.rankedSolo : player.rankedFlex
   const rankColor = stats ? getRankColor(stats.tier) : '#6b7280'
   const wr = stats ? winRate(stats.wins, stats.losses) : 0
@@ -186,14 +189,65 @@ function PlayerCardComponent({ player, queueType, onRemove }: PlayerCardProps) {
           </div>
         </div>
 
-        {/* Name */}
-        <div className="w-40 flex-shrink-0 mr-4">
-          <div className="flex items-center gap-1.5">
-            <span className={`font-display font-bold text-sm truncate ${player.isMe ? 'text-[#c8aa6e]' : 'text-[#e8d8b8]'}`}>
-              {player.summonerName}
-            </span>
-            {player.isMe && (
-              <span className="text-[9px] font-display bg-[#c89b3c]/20 text-[#c89b3c] border border-[#c89b3c]/40 rounded px-1 py-0.5 flex-shrink-0">YOU</span>
+        {/* Name + optional nickname */}
+        <div className="w-40 flex-shrink-0 mr-4 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {editingNickname && onUpdateNickname ? (
+              <input
+                type="text"
+                value={nicknameInput}
+                onChange={e => setNicknameInput(e.target.value)}
+                onBlur={() => {
+                  onUpdateNickname(player.summonerName, player.tagline, nicknameInput)
+                  setEditingNickname(false)
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    (e.target as HTMLInputElement).blur()
+                  }
+                  if (e.key === 'Escape') {
+                    setNicknameInput(player.nickname ?? '')
+                    setEditingNickname(false)
+                  }
+                }}
+                placeholder="Nickname"
+                className="flex-1 min-w-0 bg-[#0d1b2a] border border-[#c89b3c]/50 rounded px-1.5 py-0.5 text-[10px] text-[#e8d8b8] font-body focus:border-[#c89b3c] focus:outline-none"
+                autoFocus
+                onClick={e => e.stopPropagation()}
+              />
+            ) : (
+              <>
+                {player.nickname ? (
+                  <span className="text-[10px] text-[#c89b3c] font-body truncate w-full block" title={player.nickname}>
+                    {player.nickname}
+                  </span>
+                ) : null}
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className={`font-display font-bold text-sm truncate ${player.isMe ? 'text-[#c8aa6e]' : 'text-[#e8d8b8]'}`}>
+                    {player.summonerName}
+                  </span>
+                  {onUpdateNickname && (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation()
+                        setNicknameInput(player.nickname ?? '')
+                        setEditingNickname(true)
+                      }}
+                      className="opacity-0 group-hover:opacity-70 hover:opacity-100 p-0.5 rounded text-gray-500 hover:text-[#c89b3c] transition-all flex-shrink-0"
+                      title={player.nickname ? 'Edit nickname' : 'Add nickname'}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                  )}
+                  {player.isMe && (
+                    <span className="text-[9px] font-display bg-[#c89b3c]/20 text-[#c89b3c] border border-[#c89b3c]/40 rounded px-1 py-0.5 flex-shrink-0">YOU</span>
+                  )}
+                </div>
+              </>
             )}
           </div>
           <span className="text-gray-600 text-[10px] font-body">#{player.tagline}</span>

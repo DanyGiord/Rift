@@ -4,6 +4,7 @@ export interface FriendEntry {
   tagLine: string
   isMe: boolean
   addedAt: string
+  nickname?: string
 }
 
 const STORAGE_KEY = 'lol_friends_list'
@@ -23,7 +24,7 @@ export function saveFriends(friends: FriendEntry[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(friends))
 }
 
-export function addFriend(gameName: string, tagLine: string, isMe = false): FriendEntry[] {
+export function addFriend(gameName: string, tagLine: string, isMe = false, nickname?: string): FriendEntry[] {
   const friends = getFriends()
   const exists = friends.some(f => 
     f.gameName.toLowerCase() === gameName.toLowerCase() && 
@@ -41,8 +42,22 @@ export function addFriend(gameName: string, tagLine: string, isMe = false): Frie
     tagLine,
     isMe,
     addedAt: new Date().toISOString(),
+    ...(nickname?.trim() && { nickname: nickname.trim() }),
   }
   const updated = [...friends, newEntry]
+  saveFriends(updated)
+  return updated
+}
+
+export function updateFriendNickname(gameName: string, tagLine: string, nickname: string): FriendEntry[] {
+  const friends = getFriends()
+  const key = (g: string, t: string) => `${g.toLowerCase()}#${t.toLowerCase()}`
+  const target = key(gameName, tagLine)
+  const updated = friends.map(f =>
+    key(f.gameName, f.tagLine) === target
+      ? { ...f, nickname: nickname.trim() || undefined }
+      : f
+  )
   saveFriends(updated)
   return updated
 }
@@ -80,6 +95,7 @@ export function buildFriendsShareToken(friends: FriendEntry[]): string | null {
     g: f.gameName,
     t: f.tagLine,
     m: f.isMe ? 1 : 0,
+    ...(f.nickname?.trim() && { n: f.nickname.trim() }),
   }))
   try {
     const json = JSON.stringify(minimal)
@@ -96,7 +112,7 @@ export function buildFriendsShareToken(friends: FriendEntry[]): string | null {
 export function mergeFriendsFromShareToken(token: string): FriendEntry[] {
   if (!token || typeof window === 'undefined') return getFriends()
 
-  let decoded: Array<{ g: string; t: string; m?: number }> = []
+  let decoded: Array<{ g: string; t: string; m?: number; n?: string }> = []
   try {
     const json = decodeFromShare(token)
     const parsed = JSON.parse(json)
@@ -137,8 +153,9 @@ export function mergeFriendsFromShareToken(token: string): FriendEntry[] {
 
     const current = byKey.get(key)
     if (current) {
-      // Merge flags, keep earliest addedAt
+      // Merge flags and nickname, keep earliest addedAt
       current.isMe = current.isMe || isMe
+      if (e.n !== undefined) current.nickname = e.n || undefined
       continue
     }
 
@@ -147,6 +164,7 @@ export function mergeFriendsFromShareToken(token: string): FriendEntry[] {
       tagLine: e.t,
       isMe,
       addedAt: new Date().toISOString(),
+      ...(e.n && { nickname: e.n }),
     })
   }
 

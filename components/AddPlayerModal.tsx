@@ -5,12 +5,13 @@ import { FriendEntry } from '@/lib/friends'
 
 interface AddPlayerModalProps {
   onClose: () => void
-  onAdd: (gameName: string, tagLine: string, isMe: boolean) => void
+  onAdd: (gameName: string, tagLine: string, isMe: boolean, nickname?: string) => void
 }
 
 export function AddPlayerModal({ onClose, onAdd }: AddPlayerModalProps) {
   const [gameName, setGameName] = useState('')
   const [tagLine, setTagLine] = useState('')
+  const [nickname, setNickname] = useState('')
   const [isMe, setIsMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -24,7 +25,7 @@ export function AddPlayerModal({ onClose, onAdd }: AddPlayerModalProps) {
     setLoading(true)
     setError('')
     try {
-      await onAdd(gameName.trim(), tagLine.trim(), isMe)
+      await onAdd(gameName.trim(), tagLine.trim(), isMe, nickname.trim() || undefined)
       onClose()
     } catch (err: any) {
       setError(err.message || 'Failed to add player')
@@ -71,6 +72,18 @@ export function AddPlayerModal({ onClose, onAdd }: AddPlayerModalProps) {
                 className="flex-1 bg-[#010a13] border border-[#1e2d40] rounded px-3 py-2.5 text-[#f0e6d3] font-body text-sm focus:border-[#c89b3c] focus:outline-none transition-colors placeholder-gray-600"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1 font-body uppercase tracking-widest">Nickname (optional)</label>
+            <input
+              type="text"
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+              placeholder="e.g. John's smurf"
+              className="w-full bg-[#010a13] border border-[#1e2d40] rounded px-3 py-2.5 text-[#f0e6d3] font-body text-sm focus:border-[#c89b3c] focus:outline-none transition-colors placeholder-gray-600"
+            />
+            <p className="text-[10px] text-gray-600 mt-0.5 font-body">Label this account so you can tell friends with multiple accounts apart</p>
           </div>
 
           <label className="flex items-center gap-3 cursor-pointer group">

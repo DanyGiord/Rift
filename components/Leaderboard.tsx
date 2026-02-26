@@ -7,6 +7,7 @@ import {
   getFriends,
   addFriend,
   removeFriend,
+  updateFriendNickname,
   FriendEntry,
   buildFriendsShareToken,
   mergeFriendsFromShareToken,
@@ -97,8 +98,8 @@ export function Leaderboard() {
     })()
   }, [loadPlayer])
 
-  const handleAdd = async (gameName: string, tagLine: string, isMe: boolean) => {
-    const updated = addFriend(gameName, tagLine, isMe)
+  const handleAdd = async (gameName: string, tagLine: string, isMe: boolean, nickname?: string) => {
+    const updated = addFriend(gameName, tagLine, isMe, nickname)
     setFriends(updated)
     if (isMe) {
       setPlayers(prev => {
@@ -109,6 +110,10 @@ export function Leaderboard() {
     }
     await loadPlayer(gameName, tagLine, isMe)
   }
+
+  const handleUpdateNickname = useCallback((gameName: string, tagLine: string, nickname: string) => {
+    setFriends(updateFriendNickname(gameName, tagLine, nickname))
+  }, [])
 
   const handleRemove = (gameName: string, tagLine: string) => {
     setFriends(removeFriend(gameName, tagLine))
@@ -157,12 +162,14 @@ export function Leaderboard() {
     recentMatches: [],
     lpDelta24h: null,
     isMe: f.isMe,
+    nickname: f.nickname,
   })
 
   const allEntries: PlayerWithMeta[] = useMemo(() => {
     const playerList = friends.map(f => {
       const key = playerKey(f.gameName, f.tagLine)
-      return players.get(key) || emptyPlayer(f)
+      const p = players.get(key) || emptyPlayer(f)
+      return { ...p, nickname: f.nickname ?? p.nickname }
     })
 
     const sorted = sortPlayers(
@@ -342,7 +349,7 @@ export function Leaderboard() {
               key={`${player.summonerName}#${player.tagline}`}
               className="animate-slide-up transition-transform duration-300 hover:-translate-y-1"
             >
-              <PlayerCard player={player as any} queueType={queueType} onRemove={handleRemove} />
+              <PlayerCard player={player as any} queueType={queueType} onRemove={handleRemove} onUpdateNickname={handleUpdateNickname} />
             </div>
           ))}
         </div>
