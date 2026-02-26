@@ -244,7 +244,10 @@ export function Leaderboard() {
 
         <div className="space-y-1.5">
           {allEntries.map(player => (
-            <div key={`${player.summonerName}#${player.tagline}`} className="animate-slide-up">
+            <div
+              key={`${player.summonerName}#${player.tagline}`}
+              className="animate-slide-up transition-transform duration-300 hover:-translate-y-1"
+            >
               <PlayerCard player={player as any} queueType={queueType} onRemove={handleRemove} />
             </div>
           ))}

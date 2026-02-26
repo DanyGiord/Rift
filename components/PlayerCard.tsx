@@ -151,7 +151,7 @@ function PlayerCardComponent({ player, queueType, onRemove }: PlayerCardProps) {
   }
 
   return (
-    <div className={`rounded-lg border transition-all duration-300 ease-out overflow-hidden relative ${
+    <div className={`rounded-lg border transition-all duration-300 ease-out overflow-hidden relative transform hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-xl ${
       player.isMe ? 'border-[#c89b3c]/50' : 'border-[#1e2d40] hover:border-[#2a3d52]'
     }`} style={{ background: player.isMe ? 'rgba(200,155,60,0.06)' : 'rgba(8,18,30,0.9)', transformOrigin: 'center' }}>
 
