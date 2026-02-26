@@ -238,22 +238,34 @@ export async function getRecentMatches(puuid: string, count = 5): Promise<Recent
  * This gives an intuitive "last 24h LP" number that roughly tracks
  * what sites like U.GG show, without needing full historical ladder data.
  */
+const RATE_LIMIT_BATCH_SIZE = 5
+const RATE_LIMIT_BATCH_DELAY_MS = 400
+
 export async function getLpDelta24h(puuid: string): Promise<number | null> {
   try {
     const startTime = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000) // unix seconds
     const r = await riotFetch(
-      `${EUROPE_BASE}/lol/match/v5/matches/by-puuid/${puuid}/ids?queue=420&start=0&count=50&startTime=${startTime}`
+      `${EUROPE_BASE}/lol/match/v5/matches/by-puuid/${puuid}/ids?queue=420&start=0&count=20&startTime=${startTime}`
     )
     if (!r.ok) return null
     const ids: string[] = await r.json()
     if (!ids.length) return 0
 
-    const matchData = await Promise.all(
-      ids.map(async id => {
-        const res = await riotFetch(`${EUROPE_BASE}/lol/match/v5/matches/${id}`)
-        return res.ok ? res.json() : null
-      })
-    )
+    // Fetch match details in small batches with delay to stay under 20 req/s
+    const matchData: any[] = []
+    for (let i = 0; i < ids.length; i += RATE_LIMIT_BATCH_SIZE) {
+      const batch = ids.slice(i, i + RATE_LIMIT_BATCH_SIZE)
+      const results = await Promise.all(
+        batch.map(async (id: string) => {
+          const res = await riotFetch(`${EUROPE_BASE}/lol/match/v5/matches/${id}`)
+          return res.ok ? res.json() : null
+        })
+      )
+      matchData.push(...results)
+      if (i + RATE_LIMIT_BATCH_SIZE < ids.length) {
+        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_BATCH_DELAY_MS))
+      }
+    }
 
     let total = 0
     let any = false

@@ -87,10 +87,12 @@ export function Leaderboard() {
 
     setFriends(stored)
     ;(async () => {
-      const concurrency = 3
-      for (let i = 0; i < stored.length; i += concurrency) {
-        const batch = stored.slice(i, i + concurrency)
-        await Promise.all(batch.map(f => loadPlayer(f.gameName, f.tagLine, f.isMe)))
+      // Load one player at a time with delay to stay under Riot limits (20/s, 100/2min)
+      const delayMs = 1100
+      for (let i = 0; i < stored.length; i++) {
+        const f = stored[i]
+        await loadPlayer(f.gameName, f.tagLine, f.isMe)
+        if (i < stored.length - 1) await new Promise(r => setTimeout(r, delayMs))
       }
     })()
   }, [loadPlayer])
@@ -117,7 +119,12 @@ export function Leaderboard() {
     if (refreshing || !friends.length) return
     setRefreshing(true)
     setPlayers(new Map())
-    await Promise.all(friends.map(f => loadPlayer(f.gameName, f.tagLine, f.isMe)))
+    const delayMs = 1100
+    for (let i = 0; i < friends.length; i++) {
+      const f = friends[i]
+      await loadPlayer(f.gameName, f.tagLine, f.isMe)
+      if (i < friends.length - 1) await new Promise(r => setTimeout(r, delayMs))
+    }
     setRefreshing(false)
   }, [friends, loadPlayer, refreshing])
 
