@@ -69,10 +69,9 @@ export async function recordLpSnapshot(puuid: string, queue: QueueKey, stats: Ra
   await kv.ltrim(key, 0, 250)
 }
 
+// Anchor for daily LP delta: start of current UTC day (00:00 → 24:00)
 export function noonAnchorUtcMs(now = new Date()): number {
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0, 0))
-  if (now.getTime() >= d.getTime()) return d.getTime()
-  return d.getTime() - 24 * 60 * 60 * 1000
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)
 }
 
 export async function getLpDeltaSinceNoonUtc(puuid: string, queue: QueueKey): Promise<number | null> {

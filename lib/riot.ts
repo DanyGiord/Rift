@@ -263,11 +263,9 @@ export async function getLpDelta24h(puuid: string): Promise<number | null> {
       const p = m.info.participants.find((p: any) => p.puuid === puuid)
       if (!p) continue
 
+      // Only use Riot's explicit lpGain field; no heuristics.
       if (typeof p.lpGain === 'number') {
         total += p.lpGain
-        any = true
-      } else if (typeof p.win === 'boolean') {
-        total += p.win ? 18 : -15
         any = true
       }
     }
@@ -292,7 +290,7 @@ export async function getFullPlayerData(gameName: string, tagLine: string) {
     getMasteries(account.puuid, 3),
     getRecentMatches(account.puuid, 5),
     (async () => {
-      // Prefer snapshot-based delta since last 12:00 UTC refresh; fall back to match-based estimate.
+      // Prefer snapshot-based LP delta since daily UTC midnight; fall back to match-based 24h LP delta.
       const snapDelta = await getLpDeltaSinceNoonUtc(account.puuid, 'solo')
       if (snapDelta !== null) return snapDelta
       return getLpDelta24h(account.puuid)

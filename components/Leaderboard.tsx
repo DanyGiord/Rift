@@ -3,7 +3,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Player } from '@/lib/types'
 import { getTierValue } from '@/lib/riot'
-import { getFriends, addFriend, removeFriend, FriendEntry } from '@/lib/friends'
+import {
+  getFriends,
+  addFriend,
+  removeFriend,
+  FriendEntry,
+  buildFriendsShareToken,
+  mergeFriendsFromShareToken,
+} from '@/lib/friends'
 import { PlayerCard } from './PlayerCard'
 import { AddPlayerModal } from './AddPlayerModal'
 
@@ -38,6 +45,7 @@ export function Leaderboard() {
   const [showModal, setShowModal] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [noApiKey, setNoApiKey] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
 
   const playerKey = (gameName: string, tagLine: string) =>
     `${gameName.toLowerCase()}#${tagLine.toLowerCase()}`
@@ -62,7 +70,21 @@ export function Leaderboard() {
   }, [])
 
   useEffect(() => {
-    const stored = getFriends()
+    let stored = getFriends()
+
+    // If the URL contains a shared friends token, merge it into local storage
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href)
+        const token = url.searchParams.get('friends')
+        if (token) {
+          stored = mergeFriendsFromShareToken(token)
+        }
+      } catch {
+        // ignore parsing errors and fall back to local storage only
+      }
+    }
+
     setFriends(stored)
     ;(async () => {
       const concurrency = 3
@@ -98,6 +120,22 @@ export function Leaderboard() {
     await Promise.all(friends.map(f => loadPlayer(f.gameName, f.tagLine, f.isMe)))
     setRefreshing(false)
   }, [friends, loadPlayer, refreshing])
+
+  const handleShare = useCallback(async () => {
+    if (!friends.length || typeof window === 'undefined') return
+    const token = buildFriendsShareToken(friends)
+    if (!token) return
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('friends', token)
+      const shareUrl = url.toString()
+      await navigator.clipboard.writeText(shareUrl)
+      setShareCopied(true)
+      window.setTimeout(() => setShareCopied(false), 2000)
+    } catch {
+      // best-effort only
+    }
+  }, [friends])
 
   const emptyPlayer = (f: FriendEntry): Player => ({
     id: playerKey(f.gameName, f.tagLine),
@@ -164,20 +202,69 @@ export function Leaderboard() {
             </div>
             <div className="flex items-center gap-2">
               {friends.length > 0 && (
-                <button onClick={handleRefreshAll} disabled={refreshing}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded border border-[#1e2d40] text-gray-500 text-xs font-body hover:border-[#c89b3c]/40 hover:text-[#c8aa6e] transition-all">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className={refreshing ? 'animate-spin' : ''}>
-                    <path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  {refreshing ? 'Refreshing...' : 'Refresh'}
-                </button>
+                <>
+                  <button
+                    onClick={handleRefreshAll}
+                    disabled={refreshing}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded border border-[#1e2d40] text-gray-500 text-xs font-body hover:border-[#c89b3c]/40 hover:text-[#c8aa6e] transition-all"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className={refreshing ? 'animate-spin' : ''}
+                    >
+                      <path
+                        d="M23 4v6h-6M1 20v-6h6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded border border-[#1e2d40] text-gray-500 text-xs font-body hover:border-[#c89b3c]/40 hover:text-[#c8aa6e] transition-all"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M16 6l-4-4-4 4M12 2v13"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    {shareCopied ? 'Link copied' : 'Share'}
+                  </button>
+                </>
               )}
-              <button onClick={() => setShowModal(true)}
+
+              <button
+                onClick={() => setShowModal(true)}
                 className="flex items-center gap-1.5 px-4 py-2 rounded font-display font-bold text-xs tracking-wider transition-all hover:brightness-110"
-                style={{ background: 'linear-gradient(135deg, #c89b3c, #a57c2e)', color: '#010a13' }}>
+                style={{ background: 'linear-gradient(135deg, #c89b3c, #a57c2e)', color: '#010a13' }}
+              >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                 </svg>
                 ADD PLAYER
               </button>
