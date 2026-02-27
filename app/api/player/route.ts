@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const gameName = searchParams.get('gameName')
-  const tagLine  = searchParams.get('tagLine')
+  const tagLine = searchParams.get('tagLine')
 
   if (!gameName || !tagLine) {
     return NextResponse.json({ error: 'Missing gameName or tagLine' }, { status: 400 })
@@ -15,12 +15,13 @@ export async function GET(req: NextRequest) {
   if (!process.env.RIOT_API_KEY) {
     return NextResponse.json({ error: 'No Riot API key configured' }, { status: 503 })
   }
+  const forceRefresh = searchParams.get('forceRefresh') === 'true'
   try {
-    const data = await getFullPlayerData(gameName, tagLine)
+    const data = await getFullPlayerData(gameName, tagLine, forceRefresh)
     if (!data) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
     // Track and record current LP so daily delta is up to date (especially on Refresh)
-    trackPuuid(data.puuid).catch(() => {})
+    trackPuuid(data.puuid).catch(() => { })
     await recordLpSnapshot(data.puuid, 'solo', data.rankedSolo ?? null)
     await recordLpSnapshot(data.puuid, 'flex', data.rankedFlex ?? null)
 

@@ -67,13 +67,14 @@ export function Leaderboard() {
           return
         }
       }
-      const res = await fetch(`/api/player?gameName=${encodeURIComponent(gameName)}&tagLine=${encodeURIComponent(tagLine)}`)
+      const url = `/api/player?gameName=${encodeURIComponent(gameName)}&tagLine=${encodeURIComponent(tagLine)}${forceRefresh ? '&forceRefresh=true' : ''}`
+      const res = await fetch(url)
       if (res.status === 503) { setNoApiKey(true); return }
       if (!res.ok) return
       const data: Player = await res.json()
       setCachedPlayer(key, data)
       setPlayers(prev => new Map(prev).set(key, { ...data, isMe }))
-    } catch {}
+    } catch { }
     finally {
       setLoadingKeys(prev => { const n = new Set(prev); n.delete(key); return n })
     }
@@ -96,21 +97,21 @@ export function Leaderboard() {
     }
 
     setFriends(stored)
-    ;(async () => {
-      // Load one player at a time with delay to stay under Riot limits (20/s, 100/2min)
-      const delayMs = 1100
-      for (let i = 0; i < stored.length; i++) {
-        const f = stored[i]
-        await loadPlayer(f.gameName, f.tagLine, f.isMe)
-        if (i < stored.length - 1) await new Promise(r => setTimeout(r, delayMs))
-      }
-    })()
+      ; (async () => {
+        // Load one player at a time with delay to stay under Riot limits (20/s, 100/2min)
+        const delayMs = 1100
+        for (let i = 0; i < stored.length; i++) {
+          const f = stored[i]
+          await loadPlayer(f.gameName, f.tagLine, f.isMe)
+          if (i < stored.length - 1) await new Promise(r => setTimeout(r, delayMs))
+        }
+      })()
   }, [loadPlayer])
 
-  // Poll live game status so "LIVE GAME" appears without full refresh (e.g. indoor fish just entered game)
+  // Poll live game status so "LIVE GAME" appears without full refresh
   useEffect(() => {
     if (!friends.length) return
-    const LIVE_POLL_MS = 90 * 1000
+    const LIVE_POLL_MS = 3 * 60 * 1000 // 3 minutes
     const tick = async () => {
       for (const f of friends) {
         const key = playerKey(f.gameName, f.tagLine)
@@ -131,8 +132,9 @@ export function Leaderboard() {
       }
     }
     const id = setInterval(tick, LIVE_POLL_MS)
-    tick()
-    return () => clearInterval(id)
+    // Defer first poll to avoid burning API calls right after initial data load
+    const firstTick = setTimeout(tick, 30_000)
+    return () => { clearInterval(id); clearTimeout(firstTick) }
   }, [friends])
 
   const handleAdd = async (gameName: string, tagLine: string, isMe: boolean, nickname?: string) => {
@@ -225,21 +227,15 @@ export function Leaderboard() {
     ]
   }, [friends, players, loadingKeys, queueType])
 
-  // Auto-refresh every 5 minutes to keep data up to date
-  useEffect(() => {
-    if (!friends.length) return
-    const interval = setInterval(() => {
-      void handleRefreshAll()
-    }, 5 * 60 * 1000) // 5 minutes
-    return () => clearInterval(interval)
-  }, [friends.length, handleRefreshAll])
+  // Auto-refresh removed — server-side cache handles freshness.
+  // Users can click Refresh to force-update when needed.
 
   return (
     <div className="min-h-screen hex-bg relative">
       {/* Header */}
       <header className="relative border-b border-[#1e2d40]" style={{ background: 'linear-gradient(180deg, #091522 0%, #010a13 100%)' }}>
         <div className="absolute inset-0 opacity-30" style={{ background: 'radial-gradient(ellipse at 50% -20%, #c89b3c18 0%, transparent 65%)' }} />
-        <div className="relative max-w-6xl mx-auto px-6 py-6">
+        <div className="relative max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -248,17 +244,17 @@ export function Leaderboard() {
                 <div className="w-5 h-px bg-[#c89b3c]" />
               </div>
               <h1 className="font-display text-2xl md:text-3xl font-black text-[#e8d8b8] tracking-wide">
-                Friends Leaderboard
+                Enigma Leaderboard
               </h1>
               <p className="text-gray-600 text-xs font-body mt-0.5">{friends.length} player{friends.length !== 1 ? 's' : ''} tracked</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               {friends.length > 0 && (
                 <>
                   <button
                     onClick={handleRefreshAll}
                     disabled={refreshing}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded border border-[#1e2d40] text-gray-500 text-xs font-body hover:border-[#c89b3c]/40 hover:text-[#c8aa6e] transition-all"
+                    className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded border border-[#1e2d40] text-gray-500 text-xs font-body hover:border-[#c89b3c]/40 hover:text-[#c8aa6e] transition-all"
                   >
                     <svg
                       width="12"
@@ -282,12 +278,12 @@ export function Leaderboard() {
                         strokeLinejoin="round"
                       />
                     </svg>
-                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                    <span className="hidden sm:inline">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
                   </button>
 
                   <button
                     onClick={handleShare}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded border border-[#1e2d40] text-gray-500 text-xs font-body hover:border-[#c89b3c]/40 hover:text-[#c8aa6e] transition-all"
+                    className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded border border-[#1e2d40] text-gray-500 text-xs font-body hover:border-[#c89b3c]/40 hover:text-[#c8aa6e] transition-all"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <path
@@ -305,20 +301,21 @@ export function Leaderboard() {
                         strokeLinejoin="round"
                       />
                     </svg>
-                    {shareCopied ? 'Link copied' : 'Share'}
+                    <span className="hidden sm:inline">{shareCopied ? 'Link copied' : 'Share'}</span>
                   </button>
                 </>
               )}
 
               <button
                 onClick={() => setShowModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded font-display font-bold text-xs tracking-wider transition-all hover:brightness-110"
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded font-display font-bold text-xs tracking-wider transition-all hover:brightness-110"
                 style={{ background: 'linear-gradient(135deg, #c89b3c, #a57c2e)', color: '#010a13' }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                   <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                 </svg>
-                ADD PLAYER
+                <span className="hidden sm:inline">ADD PLAYER</span>
+                <span className="sm:hidden">ADD</span>
               </button>
             </div>
           </div>
@@ -328,9 +325,8 @@ export function Leaderboard() {
             <div className="flex items-center gap-1 mt-4 bg-[#010a13]/80 rounded border border-[#1e2d40] p-0.5 w-fit">
               {(['solo', 'flex'] as QueueType[]).map(q => (
                 <button key={q} onClick={() => setQueueType(q)}
-                  className={`px-4 py-1.5 rounded text-[10px] font-display font-bold tracking-[0.2em] uppercase transition-all ${
-                    queueType === q ? 'text-[#010a13]' : 'text-gray-500 hover:text-gray-300'
-                  }`}
+                  className={`px-4 py-1.5 rounded text-[10px] font-display font-bold tracking-[0.2em] uppercase transition-all ${queueType === q ? 'text-[#010a13]' : 'text-gray-500 hover:text-gray-300'
+                    }`}
                   style={queueType === q ? { background: 'linear-gradient(135deg, #c89b3c, #a57c2e)' } : {}}>
                   {q === 'solo' ? 'Solo/Duo' : 'Flex'}
                 </button>
@@ -360,7 +356,7 @@ export function Leaderboard() {
               className="inline-flex items-center gap-2 px-7 py-2.5 rounded font-display font-bold text-xs tracking-wider hover:brightness-110 transition-all"
               style={{ background: 'linear-gradient(135deg, #c89b3c, #a57c2e)', color: '#010a13' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
               </svg>
               ADD FIRST PLAYER
             </button>
@@ -369,14 +365,14 @@ export function Leaderboard() {
 
         {/* Column headers */}
         {allEntries.length > 0 && (
-          <div className="flex items-center pl-1 pr-3 mb-1.5 text-[9px] font-display tracking-[0.25em] uppercase text-gray-600">
+          <div className="hidden sm:flex items-center pl-1 pr-3 mb-1.5 text-[9px] font-display tracking-[0.25em] uppercase text-gray-600">
             <div className="w-12 text-center">Rank</div>
             <div className="w-10 mr-3" />
-            <div className="w-40 mr-4">Summoner</div>
+            <div className="flex-1 sm:w-40 sm:flex-none mr-4">Summoner</div>
             <div className="hidden md:block w-52 mr-4">Rank · 24 Hours</div>
             <div className="hidden lg:flex flex-1 mr-6 max-w-56">Winrate</div>
             <div className="hidden lg:block w-24 mr-3">Top 3</div>
-            <div className="hidden xl:block w-28">Last 5</div>
+            <div className="hidden sm:block w-28">Last 5</div>
             <div className="w-8 ml-auto" />
           </div>
         )}

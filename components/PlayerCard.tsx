@@ -12,16 +12,16 @@ interface PlayerCardProps {
 }
 
 const EMBLEMS: Record<string, string> = {
-  CHALLENGER:  'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-challenger.png',
+  CHALLENGER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-challenger.png',
   GRANDMASTER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-grandmaster.png',
-  MASTER:      'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-master.png',
-  DIAMOND:     'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-diamond.png',
-  EMERALD:     'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-emerald.png',
-  PLATINUM:    'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-platinum.png',
-  GOLD:        'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-gold.png',
-  SILVER:      'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-silver.png',
-  BRONZE:      'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-bronze.png',
-  IRON:        'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-iron.png',
+  MASTER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-master.png',
+  DIAMOND: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-diamond.png',
+  EMERALD: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-emerald.png',
+  PLATINUM: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-platinum.png',
+  GOLD: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-gold.png',
+  SILVER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-silver.png',
+  BRONZE: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-bronze.png',
+  IRON: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-emblem/emblem-iron.png',
 }
 
 function timeAgo(ts: number): string {
@@ -47,7 +47,7 @@ function kdaColor(kda: number): string {
 
 function TierBadge({ stats }: { stats: RankedStats }) {
   const color = getRankColor(stats.tier)
-  const abbr  = getTierAbbr(stats.tier, stats.division)
+  const abbr = getTierAbbr(stats.tier, stats.division)
   return (
     <span
       className="inline-flex items-center justify-center font-display font-black text-xs rounded px-1.5 py-0.5 leading-none"
@@ -64,15 +64,15 @@ function LpDeltaBadge({ delta }: { delta: number | null | undefined }) {
       <span className="inline-flex items-center gap-0.5 font-display font-bold text-[10px] px-1.5 py-0.5 rounded"
         style={{ background: 'rgba(255,255,255,0.06)', color: '#6b7280' }}>
         <svg width="7" height="7" viewBox="0 0 8 8" fill="none">
-          <circle cx="4" cy="4" r="3" fill="currentColor" opacity="0.5"/>
+          <circle cx="4" cy="4" r="3" fill="currentColor" opacity="0.5" />
         </svg>
         0 LP
       </span>
     )
   }
   const isPos = delta >= 0
-  const color     = isPos ? '#52b788' : '#e05252'
-  const bgColor   = isPos ? 'rgba(82,183,136,0.12)' : 'rgba(224,82,82,0.12)'
+  const color = isPos ? '#52b788' : '#e05252'
+  const bgColor = isPos ? 'rgba(82,183,136,0.12)' : 'rgba(224,82,82,0.12)'
   const borderCol = isPos ? 'rgba(82,183,136,0.25)' : 'rgba(224,82,82,0.25)'
   return (
     <span
@@ -82,8 +82,8 @@ function LpDeltaBadge({ delta }: { delta: number | null | undefined }) {
       {/* Arrow triangle matching the screenshot style */}
       <svg width="7" height="7" viewBox="0 0 8 8" fill="none">
         {isPos
-          ? <path d="M4 1L7 7H1L4 1Z" fill="currentColor"/>
-          : <path d="M4 7L1 1H7L4 7Z" fill="currentColor"/>
+          ? <path d="M4 1L7 7H1L4 1Z" fill="currentColor" />
+          : <path d="M4 7L1 1H7L4 7Z" fill="currentColor" />
         }
       </svg>
       {Math.abs(delta)} LP
@@ -155,14 +155,13 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
   }
 
   return (
-    <div className={`rounded-lg border transition-all duration-300 ease-out overflow-visible relative transform hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-xl ${
-      player.isMe ? 'border-[#c89b3c]/50' : 'border-[#1e2d40] hover:border-[#2a3d52]'
-    }`} style={{ background: player.isMe ? 'rgba(200,155,60,0.06)' : 'rgba(8,18,30,0.9)', transformOrigin: 'center' }}>
+    <div className={`rounded-lg border transition-all duration-300 ease-out overflow-visible relative transform hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-xl ${player.isMe ? 'border-[#c89b3c]/50' : 'border-[#1e2d40] hover:border-[#2a3d52]'
+      }`} style={{ background: player.isMe ? 'rgba(200,155,60,0.06)' : 'rgba(8,18,30,0.9)', transformOrigin: 'center' }}>
 
       <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l transition-opacity duration-300" style={{ background: rankColor, opacity: 0.8 }} />
 
       {/* Main row */}
-      <div className="flex items-center gap-0 pl-1 pr-3 h-16 cursor-pointer group hover:bg-white/2" onClick={() => setExpanded(e => !e)}>
+      <div className="flex items-center gap-0 pl-1 pr-2 sm:pr-3 min-h-[4rem] py-2 cursor-pointer group hover:bg-white/2" onClick={() => setExpanded(e => !e)}>
 
         {/* Position */}
         <div className="w-12 text-center flex-shrink-0">
@@ -190,8 +189,8 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
           </div>
         </div>
 
-        {/* Name + optional nickname */}
-        <div className="w-40 flex-shrink-0 mr-4 min-w-0">
+        {/* Name + optional nickname + mobile rank */}
+        <div className="flex-1 min-w-0 mr-2 sm:mr-4 sm:w-40 sm:flex-none">
           <div className="flex items-center gap-1.5 flex-wrap">
             {editingNickname && onUpdateNickname ? (
               <input
@@ -252,6 +251,18 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
             )}
           </div>
           <span className="text-gray-600 text-[10px] font-body">#{player.tagline}</span>
+          {/* Mobile-only rank + LP inline */}
+          {stats && (
+            <div className="flex items-center gap-1.5 mt-0.5 md:hidden">
+              <TierBadge stats={stats} />
+              <span className="font-display font-bold text-xs" style={{ color: getRankColor(stats.tier) }}>
+                {stats.lp} LP
+              </span>
+              {queueType === 'solo' && <LpDeltaBadge delta={player.lpDelta24h} />}
+              {stats.hotStreak && <span className="text-xs" title="Hot Streak">🔥</span>}
+            </div>
+          )}
+          {!stats && <span className="text-gray-600 text-xs font-body md:hidden">Unranked</span>}
         </div>
 
         {/* Rank column */}
@@ -316,7 +327,7 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
         </div>
 
         {/* Last 5 games */}
-        <div className="flex items-center gap-0.5 w-28 flex-shrink-0">
+        <div className="hidden sm:flex items-center gap-0.5 w-28 flex-shrink-0">
           {recentMatches.slice(0, 5).map((m, i) => <MatchDot key={i} match={m} />)}
           {!recentMatches.length && <span className="text-gray-700 text-[10px] font-body">—</span>}
         </div>
@@ -338,7 +349,7 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
         <div className="flex items-center gap-1 ml-auto pl-2 flex-shrink-0">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
             className={`text-gray-600 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
-            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <button
             onClick={e => { e.stopPropagation(); onRemove(player.summonerName, player.tagline) }}
@@ -346,7 +357,7 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
             title="Remove player"
           >
             <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
-              <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
         </div>
@@ -390,10 +401,10 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
             ))}
             {stats && (
               <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[#1e2d40]/40">
-                {stats.hotStreak  && <span className="text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded px-1.5 py-0.5">🔥 Hot Streak</span>}
-                {stats.veteran    && <span className="text-[10px] bg-blue-500/10   text-blue-400   border border-blue-500/20   rounded px-1.5 py-0.5">🛡 Veteran</span>}
+                {stats.hotStreak && <span className="text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded px-1.5 py-0.5">🔥 Hot Streak</span>}
+                {stats.veteran && <span className="text-[10px] bg-blue-500/10   text-blue-400   border border-blue-500/20   rounded px-1.5 py-0.5">🛡 Veteran</span>}
                 {stats.freshBlood && <span className="text-[10px] bg-green-500/10  text-green-400  border border-green-500/20  rounded px-1.5 py-0.5">✨ Fresh Blood</span>}
-                {stats.inactive   && <span className="text-[10px] bg-gray-500/10   text-gray-400   border border-gray-500/20   rounded px-1.5 py-0.5">💤 Inactive</span>}
+                {stats.inactive && <span className="text-[10px] bg-gray-500/10   text-gray-400   border border-gray-500/20   rounded px-1.5 py-0.5">💤 Inactive</span>}
               </div>
             )}
             {player.inActiveGame && (
@@ -443,28 +454,27 @@ function PlayerCardComponent({ player, queueType, onRemove, onUpdateNickname }: 
             {!recentMatches.length
               ? <p className="text-gray-700 text-xs font-body">No recent ranked games</p>
               : recentMatches.map((m, i) => {
-                  const kda = m.deaths === 0 ? 99 : (m.kills + m.assists) / m.deaths
-                  return (
-                    <div key={i} className={`flex items-center gap-2 rounded px-2 py-1.5 mb-1 last:mb-0 ${
-                      m.win ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'
+                const kda = m.deaths === 0 ? 99 : (m.kills + m.assists) / m.deaths
+                return (
+                  <div key={i} className={`flex items-center gap-2 rounded px-2 py-1.5 mb-1 last:mb-0 ${m.win ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'
                     }`}>
-                      <img src={m.championIconUrl} alt={m.championName} className="w-7 h-7 rounded-full object-cover flex-shrink-0"
-                        onError={e => { (e.target as HTMLImageElement).style.opacity = '0' }} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className={`text-[10px] font-bold ${m.win ? 'text-green-500' : 'text-red-500'}`}>{m.win ? 'W' : 'L'}</span>
-                          <span className="text-[10px] text-gray-400 truncate font-body">{m.championName}</span>
-                        </div>
-                        <div className="text-[10px] text-gray-600 font-body">
-                          {m.kills}/{m.deaths}/{m.assists}
-                          <span className="ml-1" style={{ color: kdaColor(kda), fontSize: 9 }}>{formatKDA(m.kills, m.deaths, m.assists)}</span>
-                          <span className="ml-1">{m.cs}cs ({m.csPerMin}/m)</span>
-                        </div>
+                    <img src={m.championIconUrl} alt={m.championName} className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                      onError={e => { (e.target as HTMLImageElement).style.opacity = '0' }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className={`text-[10px] font-bold ${m.win ? 'text-green-500' : 'text-red-500'}`}>{m.win ? 'W' : 'L'}</span>
+                        <span className="text-[10px] text-gray-400 truncate font-body">{m.championName}</span>
                       </div>
-                      <div className="text-[9px] text-gray-700 font-body flex-shrink-0">{timeAgo(m.timestamp)}</div>
+                      <div className="text-[10px] text-gray-600 font-body">
+                        {m.kills}/{m.deaths}/{m.assists}
+                        <span className="ml-1" style={{ color: kdaColor(kda), fontSize: 9 }}>{formatKDA(m.kills, m.deaths, m.assists)}</span>
+                        <span className="ml-1">{m.cs}cs ({m.csPerMin}/m)</span>
+                      </div>
                     </div>
-                  )
-                })
+                    <div className="text-[9px] text-gray-700 font-body flex-shrink-0">{timeAgo(m.timestamp)}</div>
+                  </div>
+                )
+              })
             }
           </div>
         </div>

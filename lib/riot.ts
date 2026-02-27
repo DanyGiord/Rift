@@ -2,22 +2,30 @@ import { Tier, Division, RankedStats, ChampionMastery, RecentMatch } from './typ
 import { getLpDeltaSinceNoonUtc } from './lpSnapshots'
 
 export const RIOT_API_KEY = process.env.RIOT_API_KEY || ''
-const EUW_BASE    = 'https://euw1.api.riotgames.com'
+const EUW_BASE = 'https://euw1.api.riotgames.com'
 const EUROPE_BASE = 'https://europe.api.riotgames.com'
+
+// ─── Server-side in-memory caches ──────────────────────────
+type CacheEntry<T> = { data: T; ts: number }
+const playerDataCache = new Map<string, CacheEntry<any>>()
+const SERVER_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+const accountCache = new Map<string, CacheEntry<{ puuid: string; summonerId: string }>>()
+const ACCOUNT_CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
 
 export function getRankColor(tier: Tier): string {
   switch (tier) {
     case 'CHALLENGER': return '#f4c874'
     case 'GRANDMASTER': return '#cd4545'
-    case 'MASTER':      return '#9d48e0'
-    case 'DIAMOND':     return '#576bce'
-    case 'EMERALD':     return '#52b788'
-    case 'PLATINUM':    return '#4a9b8e'
-    case 'GOLD':        return '#c89b3c'
-    case 'SILVER':      return '#a0a0b0'
-    case 'BRONZE':      return '#a0522d'
-    case 'IRON':        return '#6b5344'
-    default:            return '#6b7280'
+    case 'MASTER': return '#9d48e0'
+    case 'DIAMOND': return '#576bce'
+    case 'EMERALD': return '#52b788'
+    case 'PLATINUM': return '#4a9b8e'
+    case 'GOLD': return '#c89b3c'
+    case 'SILVER': return '#a0a0b0'
+    case 'BRONZE': return '#a0522d'
+    case 'IRON': return '#6b5344'
+    default: return '#6b7280'
   }
 }
 
@@ -28,7 +36,7 @@ export function getTierAbbr(tier: Tier, division: Division | null): string {
     GOLD: 'G', SILVER: 'S', BRONZE: 'B', IRON: 'I', UNRANKED: '—',
   }
   const base = abbr[tier]
-  if (!division || ['CHALLENGER','GRANDMASTER','MASTER','UNRANKED'].includes(tier)) return base
+  if (!division || ['CHALLENGER', 'GRANDMASTER', 'MASTER', 'UNRANKED'].includes(tier)) return base
   const divNum: Record<string, string> = { I: '1', II: '2', III: '3', IV: '4' }
   return base + divNum[division]
 }
@@ -158,14 +166,26 @@ export async function getRankedEntriesByPuuid(puuid: string) {
   return r.json()
 }
 
+/** Resolve & cache account + summoner IDs so live-game polling doesn't repeat lookups */
+async function getCachedAccountIds(gameName: string, tagLine: string): Promise<{ puuid: string; summonerId: string } | null> {
+  const key = `${gameName.toLowerCase()}#${tagLine.toLowerCase()}`
+  const cached = accountCache.get(key)
+  if (cached && Date.now() - cached.ts < ACCOUNT_CACHE_TTL_MS) return cached.data
+  const account = await getAccountByRiotId(gameName, tagLine)
+  if (!account) return null
+  const summoner = await getSummonerByPuuid(account.puuid)
+  if (!summoner) return null
+  const entry = { puuid: account.puuid, summonerId: summoner.id }
+  accountCache.set(key, { data: entry, ts: Date.now() })
+  return entry
+}
+
 /** Lightweight check: is this player currently in an active (spectatable) game? */
 export async function getActiveGameStatus(gameName: string, tagLine: string): Promise<boolean> {
   try {
-    const account = await getAccountByRiotId(gameName, tagLine)
-    if (!account) return false
-    const summoner = await getSummonerByPuuid(account.puuid)
-    if (!summoner) return false
-    const r = await riotFetch(`${EUW_BASE}/lol/spectator/v4/active-games/by-summoner/${summoner.id}`)
+    const ids = await getCachedAccountIds(gameName, tagLine)
+    if (!ids) return false
+    const r = await riotFetch(`${EUW_BASE}/lol/spectator/v4/active-games/by-summoner/${ids.summonerId}`)
     return r.ok
   } catch {
     return false
@@ -174,7 +194,7 @@ export async function getActiveGameStatus(gameName: string, tagLine: string): Pr
 
 export async function getApexPosition(tier: Tier, summonerId: string): Promise<number | null> {
   const urlMap: Partial<Record<Tier, string>> = {
-    CHALLENGER:  `${EUW_BASE}/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5`,
+    CHALLENGER: `${EUW_BASE}/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5`,
     GRANDMASTER: `${EUW_BASE}/lol/league/v4/grandmasterleagues/by-queue/RANKED_SOLO_5x5`,
   }
   const url = urlMap[tier]
@@ -219,6 +239,17 @@ const QUEUE_LABELS: Record<number, string> = {
   400: 'Normal Draft', 430: 'Normal Blind', 700: 'Clash',
 }
 
+// Riot match API sometimes returns champion names that differ from Data Dragon image paths.
+// This map normalises the known mismatches so icon URLs resolve correctly.
+const CHAMPION_NAME_FIXES: Record<string, string> = {
+  FiddleSticks: 'Fiddlesticks',
+  // Add more if discovered
+}
+
+function normChampName(raw: string): string {
+  return CHAMPION_NAME_FIXES[raw] ?? raw
+}
+
 export async function getRecentMatches(puuid: string, count = 5): Promise<RecentMatch[]> {
   try {
     const ver = await ddVersion().catch(() => '15.8.1')
@@ -256,10 +287,11 @@ export async function getRecentMatches(puuid: string, count = 5): Promise<Recent
         // lpGain is exposed in match data since ~patch 14.x
         const lpChange: number | null = typeof p.lpGain === 'number' ? p.lpGain
           : typeof p.perks?.statPerks?.offense === 'number' ? null
-          : null
+            : null
+        const champName = normChampName(p.championName ?? 'Unknown')
         return {
-          championName: p.championName ?? 'Unknown',
-          championIconUrl: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${p.championName}.png`,
+          championName: champName,
+          championIconUrl: `https://ddragon.leagueoflegends.com/cdn/${ver}/img/champion/${champName}.png`,
           win: p.win,
           kills: p.kills, deaths: p.deaths, assists: p.assists,
           cs, csPerMin: durMin > 0 ? Math.round((cs / durMin) * 10) / 10 : 0,
@@ -316,21 +348,21 @@ export async function getLpDelta24h(puuid: string): Promise<number | null> {
     }
 
     let total = 0
-    let any = false
 
     for (const m of matchData) {
       if (!m) continue
       const p = m.info.participants.find((p: any) => p.puuid === puuid)
       if (!p) continue
 
-      // Only use Riot's explicit lpGain field; no heuristics.
+      // Use Riot's explicit lpGain field when present; fall back to heuristic
       if (typeof p.lpGain === 'number') {
         total += p.lpGain
-        any = true
+      } else {
+        // Heuristic: average LP gain/loss per game in solo queue
+        total += p.win ? 22 : -16
       }
     }
 
-    if (!any) return 0
     return total
   } catch (e) {
     console.error('[lpDelta24h]', e)
@@ -338,10 +370,21 @@ export async function getLpDelta24h(puuid: string): Promise<number | null> {
   }
 }
 
-export async function getFullPlayerData(gameName: string, tagLine: string) {
+export async function getFullPlayerData(gameName: string, tagLine: string, forceRefresh = false) {
+  const cacheKey = `${gameName.toLowerCase()}#${tagLine.toLowerCase()}`
+
+  // Return cached data if still fresh (unless force refresh requested)
+  if (!forceRefresh) {
+    const cached = playerDataCache.get(cacheKey)
+    if (cached && Date.now() - cached.ts < SERVER_CACHE_TTL_MS) {
+      return cached.data
+    }
+  }
+
   const account = await getAccountByRiotId(gameName, tagLine)
   if (!account) throw new Error(`Account not found: ${gameName}#${tagLine}`)
 
+  // Also populate the account cache for live-game polling
   const summoner = await getSummonerByPuuid(account.puuid)
   if (!summoner) throw new Error(`Summoner not found for puuid: ${account.puuid}`)
 
@@ -366,7 +409,7 @@ export async function getFullPlayerData(gameName: string, tagLine: string) {
   ])
 
   const soloQ = ranked.find((r: any) => r.queueType === 'RANKED_SOLO_5x5') ?? null
-  const flexQ  = ranked.find((r: any) => r.queueType === 'RANKED_FLEX_SR')  ?? null
+  const flexQ = ranked.find((r: any) => r.queueType === 'RANKED_FLEX_SR') ?? null
 
   let soloPos: number | null = null
   if (soloQ && ['CHALLENGER', 'GRANDMASTER'].includes(soloQ.tier)) {
@@ -390,7 +433,13 @@ export async function getFullPlayerData(gameName: string, tagLine: string) {
     }
   }
 
-  return {
+  // Populate account cache for live-game polling
+  accountCache.set(cacheKey, {
+    data: { puuid: account.puuid, summonerId: summoner.id },
+    ts: Date.now(),
+  })
+
+  const result = {
     puuid: account.puuid,
     summonerName: gameName,
     tagline: tagLine,
@@ -404,4 +453,9 @@ export async function getFullPlayerData(gameName: string, tagLine: string) {
     inActiveGame: inActiveGame ?? false,
     lastUpdated: new Date().toISOString(),
   }
+
+  // Cache the result server-side
+  playerDataCache.set(cacheKey, { data: result, ts: Date.now() })
+
+  return result
 }
