@@ -412,10 +412,11 @@ export async function getFullPlayerData(gameName: string, tagLine: string, force
   const summoner = await getSummonerByPuuid(account.puuid)
   if (!summoner) throw new Error(`Summoner not found for puuid: ${account.puuid}`)
 
-  const [ranked, topChampions, recentMatches, inActiveGame] = await Promise.all([
+  const [ranked, topChampions, recentMatches, lpDelta24h, inActiveGame] = await Promise.all([
     getRankedStats(account.puuid, summoner.id),
     getMasteries(account.puuid, 3),
     getRecentMatches(account.puuid, 5),
+    getLpDelta24h(account.puuid),
     (async () => {
       try {
         const r = await riotFetch(`${EUW_BASE}/lol/spectator/v4/active-games/by-summoner/${summoner.id}`)
