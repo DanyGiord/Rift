@@ -11,12 +11,16 @@ type LpSnapshot = {
 }
 
 function tierValue(tier: Tier, division: Division | null, lp: number): number {
+  if (tier === 'UNRANKED') return -1000
   const tierValues: Record<Tier, number> = {
-    CHALLENGER: 9000, GRANDMASTER: 8000, MASTER: 7000,
-    DIAMOND: 6000, EMERALD: 5000, PLATINUM: 4000,
-    GOLD: 3000, SILVER: 2000, BRONZE: 1000, IRON: 0, UNRANKED: -1000,
+    CHALLENGER: 2800, GRANDMASTER: 2800, MASTER: 2800,
+    DIAMOND: 2400, EMERALD: 2000, PLATINUM: 1600,
+    GOLD: 1200, SILVER: 800, BRONZE: 400, IRON: 0, UNRANKED: -1000,
   }
-  const divValues: Record<string, number> = { I: 400, II: 300, III: 200, IV: 100 }
+  if (['CHALLENGER', 'GRANDMASTER', 'MASTER'].includes(tier)) {
+    return tierValues[tier] + lp
+  }
+  const divValues: Record<string, number> = { I: 300, II: 200, III: 100, IV: 0 }
   return tierValues[tier] + (division ? divValues[division] : 0) + lp
 }
 
@@ -49,19 +53,19 @@ export async function recordLpSnapshot(puuid: string, queue: QueueKey, stats: Ra
 
   const snap: LpSnapshot = stats
     ? {
-        ts,
-        tier: stats.tier,
-        division: stats.division,
-        lp: stats.lp,
-        value: tierValue(stats.tier, stats.division, stats.lp),
-      }
+      ts,
+      tier: stats.tier,
+      division: stats.division,
+      lp: stats.lp,
+      value: tierValue(stats.tier, stats.division, stats.lp),
+    }
     : {
-        ts,
-        tier: 'UNRANKED',
-        division: null,
-        lp: 0,
-        value: tierValue('UNRANKED', null, 0),
-      }
+      ts,
+      tier: 'UNRANKED',
+      division: null,
+      lp: 0,
+      value: tierValue('UNRANKED', null, 0),
+    }
 
   const key = snapshotKey(puuid, queue)
   await kv.lpush(key, JSON.stringify(snap))
@@ -97,7 +101,12 @@ export async function getLpDeltaSinceNoonUtc(puuid: string, queue: QueueKey): Pr
     if (s.ts > latest.ts) latest = s
     if (s.ts < earliest.ts) earliest = s
   }
-  return latest.value - earliest.value
+
+  // Notice we recalculate the value here using `tierValue(...)` 
+  // to ensure backwards compatibility with old snapshots before the math fix.
+  const latestValue = tierValue(latest.tier, latest.division, latest.lp)
+  const earliestValue = tierValue(earliest.tier, earliest.division, earliest.lp)
+  return latestValue - earliestValue
 }
 
 export async function listTrackedPuuids(limit = 200): Promise<string[]> {

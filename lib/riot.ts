@@ -63,12 +63,16 @@ export function getTierAbbr(tier: Tier, division: Division | null): string {
 }
 
 export function getTierValue(tier: Tier, division: Division | null, lp: number): number {
+  if (tier === 'UNRANKED') return -1000
   const tierValues: Record<Tier, number> = {
-    CHALLENGER: 9000, GRANDMASTER: 8000, MASTER: 7000,
-    DIAMOND: 6000, EMERALD: 5000, PLATINUM: 4000,
-    GOLD: 3000, SILVER: 2000, BRONZE: 1000, IRON: 0, UNRANKED: -1000,
+    CHALLENGER: 2800, GRANDMASTER: 2800, MASTER: 2800,
+    DIAMOND: 2400, EMERALD: 2000, PLATINUM: 1600,
+    GOLD: 1200, SILVER: 800, BRONZE: 400, IRON: 0, UNRANKED: -1000,
   }
-  const divValues: Record<string, number> = { I: 400, II: 300, III: 200, IV: 100 }
+  if (['CHALLENGER', 'GRANDMASTER', 'MASTER'].includes(tier)) {
+    return tierValues[tier] + lp
+  }
+  const divValues: Record<string, number> = { I: 300, II: 200, III: 100, IV: 0 }
   return tierValues[tier] + (division ? divValues[division] : 0) + lp
 }
 
@@ -369,6 +373,7 @@ export async function getLpDelta24h(puuid: string): Promise<number | null> {
     }
 
     let total = 0
+    let hasLpData = false
 
     for (const m of matchData) {
       if (!m) continue
@@ -378,16 +383,14 @@ export async function getLpDelta24h(puuid: string): Promise<number | null> {
       // Skip remakes (games shorter than 5 minutes give/take no LP)
       if (m.info.gameDuration < 300) continue
 
-      // Use Riot's explicit lpGain field when present; fall back to heuristic
+      // Use Riot's explicit lpGain field when present; fall back to null
       if (typeof p.lpGain === 'number') {
         total += p.lpGain
-      } else {
-        // Rough heuristic — only used when no LP snapshot exists
-        total += p.win ? 20 : -18
+        hasLpData = true
       }
     }
 
-    return total
+    return hasLpData ? total : null
   } catch (e) {
     console.error('[lpDelta24h]', e)
     return null
