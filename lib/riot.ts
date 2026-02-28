@@ -13,6 +13,27 @@ const SERVER_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 const accountCache = new Map<string, CacheEntry<{ puuid: string; summonerId: string }>>()
 const ACCOUNT_CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
 
+// ─── In-memory LP snapshot for accurate daily delta ────────
+// Stores the first-seen LP value per player per server session.
+// Delta = currentLP - storedLP → exact, no heuristics needed.
+const lpFirstSeen = new Map<string, { value: number; ts: number }>()
+const LP_SNAPSHOT_WINDOW_MS = 24 * 60 * 60 * 1000 // 24h
+
+function recordLpSnapshot(puuid: string, tierValue: number) {
+  const existing = lpFirstSeen.get(puuid)
+  const now = Date.now()
+  // Only store the earliest snapshot within the 24h window
+  if (!existing || now - existing.ts > LP_SNAPSHOT_WINDOW_MS) {
+    lpFirstSeen.set(puuid, { value: tierValue, ts: now })
+  }
+}
+
+function getLocalLpDelta(puuid: string, currentTierValue: number): number | null {
+  const snapshot = lpFirstSeen.get(puuid)
+  if (!snapshot) return null
+  return currentTierValue - snapshot.value
+}
+
 export function getRankColor(tier: Tier): string {
   switch (tier) {
     case 'CHALLENGER': return '#f4c874'
@@ -354,12 +375,15 @@ export async function getLpDelta24h(puuid: string): Promise<number | null> {
       const p = m.info.participants.find((p: any) => p.puuid === puuid)
       if (!p) continue
 
+      // Skip remakes (games shorter than 5 minutes give/take no LP)
+      if (m.info.gameDuration < 300) continue
+
       // Use Riot's explicit lpGain field when present; fall back to heuristic
       if (typeof p.lpGain === 'number') {
         total += p.lpGain
       } else {
-        // Heuristic: average LP gain/loss per game in solo queue
-        total += p.win ? 22 : -16
+        // Rough heuristic — only used when no LP snapshot exists
+        total += p.win ? 20 : -18
       }
     }
 
@@ -388,16 +412,10 @@ export async function getFullPlayerData(gameName: string, tagLine: string, force
   const summoner = await getSummonerByPuuid(account.puuid)
   if (!summoner) throw new Error(`Summoner not found for puuid: ${account.puuid}`)
 
-  const [ranked, topChampions, recentMatches, lpDelta24h, inActiveGame] = await Promise.all([
+  const [ranked, topChampions, recentMatches, inActiveGame] = await Promise.all([
     getRankedStats(account.puuid, summoner.id),
     getMasteries(account.puuid, 3),
     getRecentMatches(account.puuid, 5),
-    (async () => {
-      // Prefer snapshot-based LP delta since daily UTC midnight; fall back to match-based 24h LP delta.
-      const snapDelta = await getLpDeltaSinceNoonUtc(account.puuid, 'solo')
-      if (snapDelta !== null) return snapDelta
-      return getLpDelta24h(account.puuid)
-    })(),
     (async () => {
       try {
         const r = await riotFetch(`${EUW_BASE}/lol/spectator/v4/active-games/by-summoner/${summoner.id}`)
@@ -410,6 +428,19 @@ export async function getFullPlayerData(gameName: string, tagLine: string, force
 
   const soloQ = ranked.find((r: any) => r.queueType === 'RANKED_SOLO_5x5') ?? null
   const flexQ = ranked.find((r: any) => r.queueType === 'RANKED_FLEX_SR') ?? null
+
+  // ─── Accurate LP delta via snapshot comparison ───────────
+  // getTierValue gives a single numeric score (tier+division+LP).
+  // We store the first-seen value and compute delta = current − stored.
+  let computedLpDelta: number | null = lpDelta24h
+  if (soloQ) {
+    const currentValue = getTierValue(soloQ.tier as Tier, soloQ.rank as Division, soloQ.leaguePoints)
+    const snapshotDelta = getLocalLpDelta(account.puuid, currentValue)
+    if (snapshotDelta !== null) {
+      computedLpDelta = snapshotDelta
+    }
+    recordLpSnapshot(account.puuid, currentValue)
+  }
 
   let soloPos: number | null = null
   if (soloQ && ['CHALLENGER', 'GRANDMASTER'].includes(soloQ.tier)) {
@@ -449,7 +480,7 @@ export async function getFullPlayerData(gameName: string, tagLine: string, force
     rankedFlex: mapRanked(flexQ),
     topChampions,
     recentMatches,
-    lpDelta24h,
+    lpDelta24h: computedLpDelta,
     inActiveGame: inActiveGame ?? false,
     lastUpdated: new Date().toISOString(),
   }
